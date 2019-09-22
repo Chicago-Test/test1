@@ -155,7 +155,7 @@
             // 
             // NumUpDownMaxDepth
             // 
-            this.NumUpDownMaxDepth.Location = new System.Drawing.Point(499, 163);
+            this.NumUpDownMaxDepth.Location = new System.Drawing.Point(523, 169);
             this.NumUpDownMaxDepth.Maximum = new decimal(new int[] {
             9999,
             0,

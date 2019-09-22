@@ -98,21 +98,27 @@ namespace CodeProject
                 //results.Add(f.depth + ":" + f.Path);
 
                 string parentFolderAndSubFolder = "";
-                string strAttributes = f.Attributes.ToString();
-                if (strAttributes != "Directory") { strAttributes = "File"; numberOfFiles++; }
-                else
+                string strAttributes = ""; //f.Attributes.ToString();
+
+                if (((FileAttributes)f.Attributes & FileAttributes.Directory) == FileAttributes.Directory)
                 {
+                    strAttributes = "Directory";// Attribute can be "Hidden | Directory"
                     numberOfDirectory++;
                     string[] str = (f.Path).Split(Path.DirectorySeparatorChar);
                     parentFolderAndSubFolder = str[str.Length - 2] + "\\" + f.Name;
+
                 }
+                else { strAttributes = "File"; numberOfFiles++; }
+
+                long lenFullPath = f.Path.Length;
+                long lenName = f.Name.Length;
 
                 ListViewItem lvi;
-                lvi = listView1.Items.Add(f.Path);
+                lvi = listView1.Items.Add(f.Path); // full path
                 lvi.SubItems.Add((f.Size).ToString());
                 lvi.SubItems.Add(strAttributes);
-                lvi.SubItems.Add("");
-                lvi.SubItems.Add(f.Path);
+                lvi.SubItems.Add((f.Path.Length).ToString());
+                lvi.SubItems.Add(f.Path.Substring(0, (int)(lenFullPath - lenName)));
                 lvi.SubItems.Add(f.Name);
                 lvi.SubItems.Add(f.LastWriteTimeUtc.ToString());
                 lvi.SubItems.Add(f.CreationTimeUtc.ToString());
@@ -217,13 +223,13 @@ namespace CodeProject
             listView1.Columns.Add("Full Path", 150);
             listView1.Columns.Add("Size", 50, HorizontalAlignment.Right);
             listView1.Columns.Add("Type", 50, HorizontalAlignment.Left);
-            listView1.Columns.Add("Lenght", 20, HorizontalAlignment.Left);
+            listView1.Columns.Add("Length", 50, HorizontalAlignment.Left);
             listView1.Columns.Add("Path", 150, HorizontalAlignment.Left);
             listView1.Columns.Add("file/folder name", 250, HorizontalAlignment.Left);
-            listView1.Columns.Add("DateLastModified", 150, HorizontalAlignment.Left);
-            listView1.Columns.Add("DateCreated", 150, HorizontalAlignment.Left);
-            listView1.Columns.Add("DateLastAccessed", 150, HorizontalAlignment.Left);
-            listView1.Columns.Add("Depth", 20, HorizontalAlignment.Left);
+            listView1.Columns.Add("DateLastModified", 100, HorizontalAlignment.Left);
+            listView1.Columns.Add("DateCreated", 100, HorizontalAlignment.Left);
+            listView1.Columns.Add("DateLastAccessed", 100, HorizontalAlignment.Left);
+            listView1.Columns.Add("Depth", 30, HorizontalAlignment.Left);
             listView1.Columns.Add("Parentfolder&Subfolder", 250, HorizontalAlignment.Left);
 
             //////////////////////////////////////////////
@@ -260,6 +266,7 @@ namespace CodeProject
 
 
             Clipboard.SetDataObject(sb.ToString());
+            MessageBox.Show("Copy to clipboard completed.");
 
         }
 
@@ -279,6 +286,8 @@ namespace CodeProject
 
                 using (StreamWriter sw = new StreamWriter(fs))
                 {
+                    sw.WriteLine("Full Path" + "\t" + "Size" + "\t" + "Type" + "\t" + "Length" + "\t" + "Path" + "\t" + "file/folder name" + "\t" + "DateLastModified" + "\t" + "DateCreated" + "\t" + "DateLastAccessed" + "\t" + "Depth" + "\t" + "Parentfolder & Subfolder");
+
                     foreach (var item in listView1.Items)
                     {
                         sb.Length = 0;
@@ -292,12 +301,14 @@ namespace CodeProject
 
                 fs.Close();
             }
+            MessageBox.Show("Save to file completed.");
 
         }
 
         private void NumUpDownMaxDepth_ValueChanged(object sender, EventArgs e)
         {
             //FastDirectoryEnumerator.
+            FastDirectoryEnumerator.MAX_DEPTH = (long)NumUpDownMaxDepth.Value;
         }
     }
 }

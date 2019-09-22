@@ -1,4 +1,6 @@
-﻿using System;
+﻿// https://www.codeproject.com/Articles/38959/A-Faster-Directory-Enumerator
+
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.ConstrainedExecution;
@@ -34,7 +36,7 @@ namespace CodeProject
         /// <summary>
         /// Gets the last access time in local time.
         /// </summary>
-        public DateTime LastAccesTime
+        public DateTime LastAccessTime
         {
             get { return this.LastAccessTimeUtc.ToLocalTime(); }
         }
@@ -373,13 +375,13 @@ namespace CodeProject
                 [In, Out] WIN32_FIND_DATA data);
 
             [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-            private static extern IntPtr FindFirstFileEx(
+            private static extern SafeFindHandle FindFirstFileEx(
                 string lpFileName,
                 FINDEX_INFO_LEVELS fInfoLevelId, //FINDEX_INFO_LEVELS 
-                out WIN32_FIND_DATA lpFindFileData,
+                [In, Out] WIN32_FIND_DATA lpFindFileData,
                 FINDEX_SEARCH_OPS fSearchOp, //FINDEX_SEARCH_OPS
                 IntPtr lpSearchFilter,
-                int dwAdditionalFlags);
+                FIND_FIRST_EX dwAdditionalFlags);
 
             [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
             private static extern bool FindNextFile(SafeFindHandle hndFindFile,
@@ -397,7 +399,11 @@ namespace CodeProject
                 FindExSearchLimitToDirectories = 1,
                 FindExSearchLimitToDevices = 2
             }
-
+            internal enum FIND_FIRST_EX
+            {
+                CaseSensitive = 1,
+                LargeFetch = 2
+            }
 
             /// <summary>
             /// Hold context information about where we current are in the directory search.
@@ -420,6 +426,7 @@ namespace CodeProject
             private SearchContext m_currentContext;
 
             private long m_depth;
+            private Stack<string> m_wasteDirectories;
 
             private SafeFindHandle m_hndFindFile;
             private WIN32_FIND_DATA m_win_find_data = new WIN32_FIND_DATA();
@@ -444,6 +451,7 @@ namespace CodeProject
                 m_currentContext = new SearchContext(path);
 
                 //All_results = new List<string>(); //yoji
+                m_wasteDirectories = new Stack<string>();
 
                 if (m_searchOption == SearchOption.AllDirectories)
                 {
@@ -522,15 +530,14 @@ namespace CodeProject
                 {
                     if (m_hndFindFile == null)
                     {
-                        new FileIOPermission(FileIOPermissionAccess.PathDiscovery, m_path).Demand();
+                        //new FileIOPermission(FileIOPermissionAccess.PathDiscovery, m_path).Demand();
 
                         string searchPath = Path.Combine(m_path, m_filter);
-                        m_hndFindFile = FindFirstFile(searchPath, m_win_find_data);
+                        //  m_hndFindFile = FindFirstFile(searchPath, m_win_find_data);
+                        m_hndFindFile = FindFirstFileEx(searchPath, FINDEX_INFO_LEVELS.FindExInfoStandard,
+                            m_win_find_data, FINDEX_SEARCH_OPS.FindExSearchNameMatch, IntPtr.Zero, FIND_FIRST_EX.LargeFetch);
 
-
-                        // var xxx = FindFirstFileEx(searchPath, FINDEX_INFO_LEVELS.FindExInfoStandard, out m_win_find_data, FINDEX_SEARCH_OPS.FindExSearchNameMatch, IntPtr.Zero, 0);
-
-
+                        m_wasteDirectories.Clear();
 
                         retval = !m_hndFindFile.IsInvalid;
                     }
@@ -540,50 +547,54 @@ namespace CodeProject
                         retval = FindNextFile(m_hndFindFile, m_win_find_data);
                     }
                 }
+                else
+                {
+                    int tmp = 0;
+                }
 
                 //If the call to FindNextFile or FindFirstFile succeeded...
                 if (retval)
                 {
-                    if (((FileAttributes)m_win_find_data.dwFileAttributes & FileAttributes.Directory) == FileAttributes.Directory)
+                    while (((FileAttributes)m_win_find_data.dwFileAttributes & FileAttributes.Directory) == FileAttributes.Directory && retval)
                     {
-                        //Ignore folders for now.   We call MoveNext recursively here to 
-                        // move to the next item that FindNextFile will return.
-
-                        /* yoji */
-                        // do something
-                        //System.Diagnostics.Debug.WriteLine(m_win_find_data.cFileName + "\t" + m_win_find_data.dwFileAttributes);
-                        //All_results.Add(m_win_find_data.cFileName + "\t" + m_win_find_data.dwFileAttributes);
-
-                        if (m_win_find_data.cFileName == "." || m_win_find_data.cFileName == "..") return MoveNext();
-                        return retval;
-                        //return MoveNext();
+                        if (m_win_find_data.cFileName != "." && m_win_find_data.cFileName != "..")
+                        {
+                            m_wasteDirectories.Push(m_win_find_data.cFileName);
+                            return retval;
+                        }
+                        retval = FindNextFile(m_hndFindFile, m_win_find_data);
                     }
+                    if (retval) return retval;
+                    return MoveNext();
                 }
                 else if (m_searchOption == SearchOption.AllDirectories)
                 {
-                    //SearchContext context = new SearchContext(m_hndFindFile, m_path);
-                    //m_contextStack.Push(context);
-                    //m_path = Path.Combine(m_path, m_win_find_data.cFileName);
-                    //m_hndFindFile = null;
-                    if (m_depth <= MAX_DEPTH-1 || MAX_DEPTH == -1)
+                    if (retval || m_hndFindFile == null || !m_hndFindFile.IsInvalid)
                     {
-                        if (m_currentContext.SubdirectoriesToProcess == null)
+
+                        if (m_depth <= MAX_DEPTH - 1 || MAX_DEPTH == -1)
                         {
-                            string[] subDirectories = Directory.GetDirectories(m_path);
-                            m_currentContext.SubdirectoriesToProcess = new Stack<string>(subDirectories);
-                        }
+                            if (m_currentContext.SubdirectoriesToProcess == null)
+                            {
+                                //string[] subDirectories = Directory.GetDirectories(m_path);
+                                //m_currentContext.SubdirectoriesToProcess = new Stack<string>(subDirectories);
+                                m_currentContext.SubdirectoriesToProcess = new Stack<string>(m_wasteDirectories);
+                            }
 
-                        if (m_currentContext.SubdirectoriesToProcess.Count > 0)
-                        {
-                            string subDir = m_currentContext.SubdirectoriesToProcess.Pop();
+                            if (m_currentContext.SubdirectoriesToProcess.Count > 0)
+                            {
+                                string subDir = m_currentContext.SubdirectoriesToProcess.Pop();
 
-                            m_depth++;
+                                m_depth++;
 
-                            m_contextStack.Push(m_currentContext);
-                            m_path = subDir;
-                            m_hndFindFile = null;
-                            m_currentContext = new SearchContext(m_path);
-                            return MoveNext();
+                                m_contextStack.Push(m_currentContext);
+
+                                m_path = Path.Combine(m_path, subDir);
+
+                                m_hndFindFile = null;
+                                m_currentContext = new SearchContext(m_path);
+                                return MoveNext();
+                            }
                         }
                     }
                     //If there are no more files in this directory and we are 
