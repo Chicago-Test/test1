@@ -1,40 +1,51 @@
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0a2-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0a1-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0a3-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0b3-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0b4-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0b2-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0b1-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0a4-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0rc1-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0a3-amd64-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0a1-amd64-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0a2-amd64-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0a4-amd64-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0b1-amd64-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0b3-amd64-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0b2-amd64-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0b4-amd64-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0-amd64-webinstall.exe"
-.add "https://www.python.org/ftp/python/3.8.0/python-3.8.0rc1-amd64-webinstall.exe"
-.add "https://www.python.org/ftp/python/src/X-extension.tar.gz"
-.add "https://www.python.org/ftp/python/src/Python-0.9.1.tar.gz"
-.add "https://www.python.org/ftp/python/src/lib1.2.tar.gz"
-.add "https://www.python.org/ftp/python/src/lib1.3.tar.gz"
-.add "https://www.python.org/ftp/python/src/lib1.4.tar.gz"
-.add "https://www.python.org/ftp/python/src/lib1.5.tar.gz"
-.add "https://www.python.org/ftp/python/src/subset1.2.tar.gz"
-.add "https://www.python.org/ftp/python/src/python1.0.1.tar.gz"
-.add "https://www.python.org/ftp/python/src/python1.1.tar.gz"
-.add "https://www.python.org/ftp/python/src/python-1.2.tar.gz"
-.add "https://www.python.org/ftp/python/src/python-1.3.tar.gz"
-.add "https://www.python.org/ftp/python/src/python-1.4.tar.gz"
-.add "https://www.python.org/ftp/python/src/pyth151.tgz"
-.add "https://www.python.org/ftp/python/src/python-1.5.1.tar.gz"
-.add "https://www.python.org/ftp/python/src/python-1.5.2b1.tar.gz"
-.add "https://www.python.org/ftp/python/src/python-1.5.2b2.tar.gz"
-.add "https://www.python.org/ftp/python/src/py152.tgz"
-.add "https://www.python.org/ftp/python/src/python-1.5.2.tar.gz"
-.add "https://www.python.org/ftp/python/src/python-1.5.2c1.tar.gz"
-.add "https://www.python.org/ftp/python/src/python-1.5.tar.gz"
+Option Explicit
+Public Sub ListFilesFSO()
+    Dim str As String
+    Dim sPath As String
+    sPath = "E:\temp\RStudio-1.2.5019\bin"
+    Dim strExt As String
+
+    Dim col As New Collection
+    Dim oFSO As Object
+    Dim oFolder As Object
+    Dim oFile As Object
+
+    Set oFSO = CreateObject("Scripting.FileSystemObject")
+    Set oFolder = oFSO.GetFolder(sPath)
+    For Each oFile In oFolder.Files
+        strExt = oFSO.GetExtensionName(oFile)
+        If strExt = "exe" Then col.Add (oFSO.GetBaseName(oFile.Name))
+        'Debug.Print oFile.Name & ":" & strExt
+    Next
+
+    Set oFile = Nothing
+    Set oFolder = Nothing
+    Set oFSO = Nothing
+
+    Dim c As Variant
+    For Each c In col
+        str = str & c & ","
+    Next c
+    Call addValidation("B3", str)    '"Orange,Apple,Mango,Pear,Peach"
+
+End Sub
+Private Sub addValidation(addr As String, formula1 As String)
+    With Range(addr).Validation
+        .Delete
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+             Operator:=xlBetween, formula1:=formula1
+        .IgnoreBlank = True
+        .InCellDropdown = True
+        .InputTitle = ""
+        .ErrorTitle = ""
+        .InputMessage = ""
+        .ErrorMessage = ""
+        .ShowInput = True
+        .ShowError = True
+    End With
+End Sub
+Private Sub Worksheet_Change(ByVal Target As Range)
+    If Target.Address = Range("B3").Address Then
+        'your code
+    End If
+End Sub
