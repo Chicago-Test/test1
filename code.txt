@@ -1,0 +1,16 @@
+Sub CertUtil()
+    Dim WSH, wExec, sCmd As String, Result As String
+    Set WSH = CreateObject("WScript.Shell")
+    'sCmd = "dir C:\"
+    'Set wExec = WSH.Exec("%ComSpec% /c " & sCmd)
+    sCmd = "certutil -hashfile " & """" & "(MVG)Menu-copy file name.reg" & """" & " MD5"
+    Set wExec = WSH.Exec(sCmd)
+    Do While wExec.Status = 0
+        DoEvents
+    Loop
+    Result = wExec.StdOut.ReadAll
+    arr = Split(Result, vbCrLf)
+    MsgBox arr(1)
+    Set wExec = Nothing
+    Set WSH = Nothing
+End Sub
